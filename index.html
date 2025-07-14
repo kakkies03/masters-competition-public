@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>マスターズ大会一覧</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>マスターズ大会一覧</h1>
+
+  <div class="filter-panel">
+    <label>年度:
+      <select id="year-filter">
+        <option value="">--すべて--</option>
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+      </select>
+    </label>
+    <label>開催日:
+      <input type="date" id="start-date"> ～ <input type="date" id="end-date">
+    </label>
+    <label>種目:
+      <select id="style-filter"></select>
+    </label>
+    <label>距離:
+      <select id="distance-filter"></select>
+    </label>
+    <button onclick="applyFilter()">検索</button>
+    <button onclick="clearFilter()">クリア</button>
+  </div>
+
+  <div class="toggle-panel">
+    <button onclick="toggleCompact()">▶ 表示切替（フル / コンパクト）</button>
+  </div>
+
+  <!-- ✅ Freakersロゴスピナー -->
+  <div id="status">
+    <div class="swimmer-wrapper">
+      <img src="Freakers.png" class="freakers-logo swimmer-img" alt="Freakersロゴ">
+      <div class="loading-text anim-text">データを読み込んでいます...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="swim-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <table id="data-table">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="script.js"></script>
+</body>
+</html>

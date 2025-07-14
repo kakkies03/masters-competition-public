@@ -1,0 +1,178 @@
+/* style.css - 表左寄せ + カラム幅統一 + 折り返し対応 */
+body {
+  background-color: #f0fcff;
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 1em;
+}
+
+.filter-panel {
+  margin-bottom: 1.5em;
+  background: white;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 0 5px #ccc;
+}
+
+.filter-panel label {
+  margin-right: 10px;
+  display: inline-block;
+}
+
+.toggle-panel {
+  margin-bottom: 10px;
+}
+
+table {
+  border-collapse: collapse;
+  width: auto;
+  max-width: 100%;
+  margin-left: 0; /* 左寄せ */
+  font-size: 12px;
+  background-color: white;
+  table-layout: fixed;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+thead tr:nth-child(1) th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #f9f9f9;
+}
+
+thead tr:nth-child(2) th {
+  position: sticky;
+  top: 24px;
+  z-index: 1;
+  background-color: #f9f9f9;
+}
+
+.group-border {
+  border-left: 2px solid #666 !important;
+}
+
+.compact .event-col {
+  display: none;
+}
+
+select, input[type="date"] {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+button {
+  font-size: 12px;
+  padding: 4px 10px;
+  margin-left: 6px;
+}
+
+.progress-wrapper {
+  width: 100%;
+  max-width: 300px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #eee;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #333;
+}
+
+/* 共通カラム（大会名・会場・締切） 折り返しあり */
+th.title-col, td.title-col,
+th.venue-col, td.venue-col,
+th.deadline-col, td.deadline-col {
+  width: 180px;
+  min-width: 160px;
+  max-width: 200px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* 開始・終了（日付） */
+th.date-col, td.date-col {
+  width: 80px;
+  min-width: 70px;
+  max-width: 100px;
+  white-space: nowrap;
+}
+
+/* 水路 */
+th.course-col, td.course-col {
+  width: 50px;  
+  min-width: 40px;
+  max-width: 60px;
+  text-align: center;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.swimmer-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;              /* ← 中央に揃える */
+  gap: 8px;
+  margin: 20px 0 10px 40px;         /* ← 表に寄せる */
+  width: 300px;                     /* ✅ 基準幅を固定 */
+}
+
+.freakers-logo {
+  width: 80px;
+  height: auto;
+  animation: swim-bounce 2s ease-in-out infinite;
+  animation-play-state: running; /* ✅ 明示的に再生指定 */
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+  width: 100%;                      /* ✅ バーと同じ幅内で中央揃え */
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #eee;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+@keyframes swim-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
