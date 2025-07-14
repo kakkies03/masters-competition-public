@@ -17,9 +17,18 @@ h1 {
   box-shadow: 0 0 5px #ccc;
 }
 
-.filter-panel label {
-  margin-right: 10px;
-  display: inline-block;
+.filter-panel {
+  display: inline-flex;            /* ← flex ではなく inline-flex に */
+  width: fit-content;              /* ← 中の要素サイズに合わせて幅を決定 */
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 0 4px #ccc;
 }
 
 .toggle-panel {
@@ -175,3 +184,4 @@ th.course-col, td.course-col {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
+
