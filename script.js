@@ -181,11 +181,11 @@ function updateProgressBar(percent) {
 
 
 
-// ✅ 年度フィルター 初期値を2025に設定
+// ✅ 年度フィルター 初期値を2026に設定
 window.addEventListener("DOMContentLoaded", () => {
   const yearSelect = document.getElementById("year-filter");
   if (yearSelect) {
-    yearSelect.value = "2025";
+    yearSelect.value = "2026";
   }
 });
 
@@ -224,12 +224,13 @@ window.addEventListener("DOMContentLoaded", () => {
   setupFilters();
   rawData.sort((a, b) => (a["開催日開始"] || "").localeCompare(b["開催日開始"] || ""));
 
-  // ✅ 初期表示は必ず 2025年 に絞る
-  document.getElementById("year-filter").value = "2025";
+  // ✅ 初期表示は必ず 2026年 に絞る
+  document.getElementById("year-filter").value = "2026";
   applyFilter();
 
   document.getElementById("data-table").classList.add("compact");
   document.getElementById("status").textContent = `${rawData.length}件表示中`;
 
 })();
+
 
