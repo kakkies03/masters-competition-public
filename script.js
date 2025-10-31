@@ -1,6 +1,6 @@
 const gasBaseUrl = "https://script.google.com/macros/s/AKfycbyEzOKQBamQhmCAaVvG58Zie7f9ZEo5Nmbo779-lI6GOOhHvh5Bo-Ay2OYfte6RfNsS/exec";
 //const sheetNames = ["2023年度公認大会一覧", "2024年度公認大会一覧", "2025年度公認大会一覧"];
-const sheetNames = ["2024年度公認大会一覧", "2025年度公認大会一覧"];
+const sheetNames = ["2024年度公認大会一覧", "2025年度公認大会一覧","2026年度公認大会一覧"];
 const fixedHeaders = [
   "大会名", "締切", "日程", "主催", "会場", "水路",
   "自由形_25m", "自由形_50m", "自由形_100m", "自由形_200m", "自由形_400m", "自由形_800m", "自由形_1500m",
@@ -232,3 +232,4 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("status").textContent = `${rawData.length}件表示中`;
 
 })();
+
