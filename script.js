@@ -1,236 +1,237 @@
-const gasBaseUrl = "https://script.google.com/macros/s/AKfycbyEzOKQBamQhmCAaVvG58Zie7f9ZEo5Nmbo779-lI6GOOhHvh5Bo-Ay2OYfte6RfNsS/exec";
-//const sheetNames = ["2023年度公認大会一覧", "2024年度公認大会一覧", "2025年度公認大会一覧"];
-const sheetNames = ["2024年度公認大会一覧", "2025年度公認大会一覧","2026年度公認大会一覧","2027年度公認大会一覧"];
-const fixedHeaders = [
-  "大会名", "締切", "日程", "主催", "会場", "水路",
-  "自由形_25m", "自由形_50m", "自由形_100m", "自由形_200m", "自由形_400m", "自由形_800m", "自由形_1500m",
-  "背泳ぎ_25m", "背泳ぎ_50m", "背泳ぎ_100m", "背泳ぎ_200m",
-  "平泳ぎ_25m", "平泳ぎ_50m", "平泳ぎ_100m", "平泳ぎ_200m",
-  "バタフライ_25m", "バタフライ_50m", "バタフライ_100m", "バタフライ_200m",
-  "個人メドレー_100m", "個人メドレー_200m", "個人メドレー_400m",
-  "フリーリレー_4x25m", "フリーリレー_4x50m", "フリーリレー_4x100m", "フリーリレー_4x200m",
-  "メドレーリレー_4x25m", "メドレーリレー_4x50m", "メドレーリレー_4x100m",
-  "混合フリーリレー_4x25m", "混合フリーリレー_4x50m", "混合フリーリレー_4x100m", "混合フリーリレー_4x200m",
-  "混合メドレーリレー_4x25m", "混合メドレーリレー_4x50m", "混合メドレーリレー_4x100m"
+// マスターズ大会一覧 - Freakers
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyEzOKQBamQhmCAaVvG58Zie7f9ZEo5Nmbo779-lI6GOOhHvh5Bo-Ay2OYfte6RfNsS/exec";
+const SHEETS = ["2024年度公認大会一覧", "2025年度公認大会一覧", "2026年度公認大会一覧", "2027年度公認大会一覧"];
+
+// シートの7列目（G列）以降の並び
+const STROKES = [
+  { key: "自由形", label: "自由形", dists: ["25", "50", "100", "200", "400", "800", "1500"] },
+  { key: "背泳ぎ", label: "背泳ぎ", dists: ["25", "50", "100", "200"] },
+  { key: "平泳ぎ", label: "平泳ぎ", dists: ["25", "50", "100", "200"] },
+  { key: "バタフライ", label: "バタフライ", dists: ["25", "50", "100", "200"] },
+  { key: "個人メドレー", label: "個人メドレー", dists: ["100", "200", "400"] },
+  { key: "フリーリレー", label: "フリーリレー", dists: ["4×25", "4×50", "4×100", "4×200"] },
+  { key: "メドレーリレー", label: "メドレーリレー", dists: ["4×25", "4×50", "4×100"] },
+  { key: "混合フリーリレー", label: "混合フリーR", dists: ["4×25", "4×50", "4×100", "4×200"] },
+  { key: "混合メドレーリレー", label: "混合メドレーR", dists: ["4×25", "4×50", "4×100"] },
 ];
-let rawData = [];
+const DOW = ["日", "月", "火", "水", "木", "金", "土"];
 
-const parseDateRange = txt => {
-  if (!txt) return ["", ""];
-  const clean = txt.replace(/[〜～~]/g, "～");
-  const range = clean.match(/(\d{4})年(\d{1,2})月(\d{1,2})日.*?～.*?(\d{1,2})月(\d{1,2})日/);
-  if (range) {
-    const [_, y, m1, d1, m2, d2] = range;
-    return [`${y}-${m1.padStart(2, 0)}-${d1.padStart(2, 0)}`, `${y}-${m2.padStart(2, 0)}-${d2.padStart(2, 0)}`];
-  }
-  const single = clean.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
-  if (single) {
-    const [_, y, m, d] = single;
-    return [`${y}-${m.padStart(2, 0)}-${d.padStart(2, 0)}`, `${y}-${m.padStart(2, 0)}-${d.padStart(2, 0)}`];
-  }
-  return ["", ""];
-};
+const state = { period: "upcoming", style: "", dist: "", course: "", keyword: "", view: "cards" };
+let meets = [];
 
-const normalizeCourse = v => v?.includes("短") ? "短水路" : v?.includes("長") ? "長水路" : v || "";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+const iso = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+const today = (() => { const t = new Date(); return iso(t.getFullYear(), t.getMonth() + 1, t.getDate()); })();
+const toDate = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 
-const loadSheet = async (name) => {
-  const url = `${gasBaseUrl}?sheet=${encodeURIComponent(name)}`;
-  const data = await fetch(url).then(r => r.json());
-  if (!Array.isArray(data)) throw new Error("invalid data");
-  return data.slice(3);
-};
-
-const setupFilters = () => {
-  const styleSel = document.getElementById("style-filter");
-  const distSel = document.getElementById("distance-filter");
-  const styleSet = new Set(), distMap = {};
-  fixedHeaders.forEach(k => {
-    if (!k.includes("_")) return;
-    const [s, d] = k.split("_");
-    const dist = d.replace("m", "");
-    styleSet.add(s);
-    distMap[s] = distMap[s] || new Set();
-    distMap[s].add(dist);
-  });
-  styleSel.innerHTML = `<option value="">--種目--</option>` + [...styleSet].map(s => `<option>${s}</option>`).join("");
-  styleSel.onchange = () => {
-    const s = styleSel.value;
-    if (!s) return distSel.innerHTML = `<option value="">--距離--</option>`;
-    const options = [...(distMap[s] || [])].sort((a, b) => +a - +b).map(d => `<option>${d}</option>`).join("");
-    distSel.innerHTML = `<option value="">--距離--</option>` + options;
-  };
-};
-
-const renderTable = (data) => {
-  const thead = document.querySelector("#data-table thead");
-  const tbody = document.querySelector("#data-table tbody");
-
-  const styleMap = {};
-  fixedHeaders.forEach(k => {
-    if (!k.includes("_")) return;
-    const [s, d] = k.split("_");
-    styleMap[s] = styleMap[s] || [];
-    styleMap[s].push(d.replace("m", "").replace("×", "×"));
-  });
-
-  const styleOrder = Object.keys(styleMap);
-
-  const th1 =
-    `<th class="title-col" rowspan="2">大会名</th>` +
-    `<th class="venue-col" rowspan="2">会場</th>` +
-    `<th class="course-col" rowspan="2">水路</th>` +
-    `<th class="deadline-col" rowspan="2">締切</th>` +
-    `<th colspan="2">開催日</th>` +
-    styleOrder.map(s =>
-      `<th class="event-col group-border" colspan="${styleMap[s].length}">${s}</th>`
-    ).join("");
-
-  const th2 =
-    `<th class="date-col">開始</th><th class="date-col">終了</th>` +
-    styleOrder.flatMap(s =>
-      styleMap[s].map((d, i) =>
-        `<th class="event-col ${i === 0 ? "group-border" : ""}">${d}</th>`
-      )
-    ).join("");
-
-  thead.innerHTML = `<tr>${th1}</tr><tr>${th2}</tr>`;
-
-  tbody.innerHTML = data.map(row => {
-    const course = row["水路"] || "-";
-    const color = course === "長水路" ? "red" : course === "短水路" ? "blue" : "black";
-
-    return "<tr>" + [
-      `<td class="title-col">${row["大会名"] || "-"}</td>`,
-      `<td class="venue-col">${row["会場"] || "-"}</td>`,
-      `<td class="course-col" style="color:${color}">${course}</td>`,
-      `<td class="deadline-col">${row["締切"] || "-"}</td>`,
-      `<td class="date-col">${row["開催日開始"] || "-"}</td>`,
-      `<td class="date-col">${row["開催日終了"] || "-"}</td>`,
-      ...styleOrder.flatMap(s =>
-        styleMap[s].map((d, i) => {
-          const key = `${s}_${d}m`;
-          const val = row[key];
-          return `<td class="event-col ${i === 0 ? "group-border" : ""}">${(val === "〇" || val === "◯") ? "〇" : "-"}</td>`;
-        })
-      )
-    ].join("") + "</tr>";
-  }).join("");
-};
-
-const applyFilter = () => {
-  const y = document.getElementById("year-filter").value;
-  const s = document.getElementById("start-date").value;
-  const e = document.getElementById("end-date").value;
-  const sty = document.getElementById("style-filter").value;
-  const dist = document.getElementById("distance-filter").value;
-  const key = sty && dist ? `${sty}_${dist}m` : null;
-  const filtered = rawData.filter(r =>
-    (!y || r["年度"] === y) &&
-    (!key || r[key] === "〇" || r[key] === "◯") &&
-    (!s || r["開催日終了"] >= s) &&
-    (!e || r["開催日開始"] <= e)
-  );
-  renderTable(filtered);
-  document.getElementById("data-table").classList.add("compact");
-  document.getElementById("status").textContent = `${filtered.length}件表示中`;
-};
-
-const clearFilter = () => {
-  document.getElementById("year-filter").value = "";
-  document.getElementById("start-date").value = "";
-  document.getElementById("end-date").value = "";
-  document.getElementById("style-filter").value = "";
-  document.getElementById("distance-filter").innerHTML = `<option value="">--距離--</option>`;
-  renderTable(rawData);
-  document.getElementById("data-table").classList.add("compact");
-  document.getElementById("status").textContent = `${rawData.length}件表示中`;
-};
-
-const toggleCompact = () => {
-  document.getElementById("data-table").classList.toggle("compact");
-};
-
-// ✅ プログレスバー関数（開始・進行・完了時の表示演出）
-function updateProgressBar(percent) {
-  const label = document.querySelector(".progress-text");
-  const swimmerWrapper = document.querySelector(".swimmer-wrapper");
-  const swimBar = document.getElementById("swim-bar-fill");
-  const swimmerImg = document.querySelector(".swimmer-img");
-
-  if (swimBar) swimBar.style.width = `${percent}%`;
-
-  if (percent === 0) {
-    if (label) label.textContent = "読み込みを開始しています...";
-    if (swimmerImg) swimmerImg.style.animationPlayState = "running"; // ✅ 初期状態で再生
-  } else if (label) {
-    label.textContent = `読み込み中... ${percent}% 完了`;
-  }
-
-  if (percent >= 100) {
-    if (swimmerImg) swimmerImg.style.animationPlayState = "paused"; // ✅ 完了で止める
-    if (swimmerWrapper) {
-      setTimeout(() => {
-        swimmerWrapper.style.transition = "opacity 0.5s ease";
-        swimmerWrapper.style.opacity = 0;
-        setTimeout(() => swimmerWrapper.style.display = "none", 500);
-      }, 500);
-    }
-  }
+// 「2026年11月30日(月) ～ 12月14日(月)」「2027年1月30日(土)」などを [開始, 終了] に
+function parseRange(text) {
+  const t = String(text || "").normalize("NFKC").replace(/[〜~]/g, "～");
+  const first = t.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if (!first) return ["", ""];
+  const y = +first[1], m = +first[2], d = +first[3];
+  const start = iso(y, m, d);
+  const rest = t.slice(first.index + first[0].length);
+  const second = rest.match(/～\s*(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日/);
+  if (!second) return [start, start];
+  let y2 = second[1] ? +second[1] : y;
+  const m2 = +second[2], d2 = +second[3];
+  if (!second[1] && m2 < m) y2 = y + 1;
+  return [start, iso(y2, m2, d2)];
 }
 
+function toMeet(r) {
+  const [start, end] = parseRange(r[2]);
+  const [entryStart, entryEnd] = parseRange(r[1]);
+  const events = {};
+  let col = 6;
+  STROKES.forEach((s) => {
+    s.dists.forEach((d) => {
+      const v = String(r[col++] || "").trim();
+      if (v === "〇" || v === "◯" || v === "○") (events[s.key] ||= []).push(d);
+    });
+  });
+  const c = String(r[5] || "");
+  const course = c.includes("短") ? "短水路" : c.includes("長") ? "長水路" : "";
+  const name = String(r[0] || "").trim();
+  return {
+    name, entryText: String(r[1] || "").trim(), dateText: String(r[2] || "").trim(),
+    org: String(r[3] || "").trim(), venue: String(r[4] || "").trim(), course,
+    start, end, entryStart, entryEnd, events, year: start.slice(0, 4),
+    cancelled: /中止/.test(name), adjusting: /調整中|延期/.test(name),
+  };
+}
 
+function entryStatus(m) {
+  if (m.cancelled) return { cls: "alert", text: "中止" };
+  if (m.adjusting) return { cls: "alert", text: "開催調整中" };
+  if (m.end && m.end < today) return { cls: "closed", text: "終了" };
+  if (m.entryStart && today < m.entryStart) return { cls: "soon", text: "申込前" };
+  if (m.entryEnd && today <= m.entryEnd) return { cls: "open", text: "申込受付中" };
+  if (m.entryEnd) return { cls: "closed", text: "申込締切" };
+  return { cls: "closed", text: "申込未発表" };
+}
 
-
-// ✅ 年度フィルター 初期値を2026に設定
-window.addEventListener("DOMContentLoaded", () => {
-  const yearSelect = document.getElementById("year-filter");
-  if (yearSelect) {
-    yearSelect.value = "2026";
-  }
-});
-
-// ✅ メイン処理（読み込み＋描画＋進捗反映）
-(async () => {
-  const seenKeys = new Set();
-  const totalSheets = sheetNames.length;
-  let completedSheets = 0;
-
-  for (const name of sheetNames) {
+// 読み込み
+async function loadAll() {
+  let done = 0;
+  const results = await Promise.all(SHEETS.map(async (name) => {
     try {
-      const rows = await loadSheet(name);
-      rows.some(r => {
-        if (!r[0]) return true;
-        const o = {};
-        fixedHeaders.forEach((k, i) => o[k] = r[i] || "");
-        const [start, end] = parseDateRange(o["日程"]);
-        o["開催日開始"] = start;
-        o["開催日終了"] = end;
-        o["年度"] = start ? start.slice(0, 4) : "";
-        o["水路"] = normalizeCourse(o["水路"]);
-        const uniqueKey = `${o["大会名"]}_${o["開催日開始"]}`;
-        if (!seenKeys.has(uniqueKey)) {
-          seenKeys.add(uniqueKey);
-          rawData.push(o);
-        }
-        return false;
-      });
-    } catch (err) {
-      console.warn(`スキップ：シート「${name}」が見つかりませんでした`);
+      const data = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(name)}`).then((r) => r.json());
+      return Array.isArray(data) ? data.slice(3) : [];
+    } catch (e) {
+      console.warn(`シート「${name}」を読み込めませんでした`, e);
+      return [];
+    } finally {
+      done++;
+      $("progress-fill").style.width = `${Math.round((done / SHEETS.length) * 100)}%`;
     }
-    completedSheets++;
-    updateProgressBar(Math.floor((completedSheets / totalSheets) * 100));
+  }));
+  const seen = new Set();
+  results.flat().forEach((r) => {
+    if (!r || !String(r[0] || "").trim()) return;
+    const m = toMeet(r);
+    if (!m.start) return;
+    const k = `${m.name}_${m.start}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    meets.push(m);
+  });
+  meets.sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name, "ja"));
+}
+
+// 絞り込み
+function filtered() {
+  const kw = state.keyword.trim().normalize("NFKC").toLowerCase();
+  return meets.filter((m) => {
+    if (state.period === "upcoming" && m.end < today) return false;
+    if (state.period === "open" && entryStatus(m).cls !== "open") return false;
+    if (/^\d{4}$/.test(state.period) && m.year !== state.period) return false;
+    if (state.course && m.course !== state.course) return false;
+    if (state.style) {
+      const list = m.events[state.style] || [];
+      if (!list.length) return false;
+      if (state.dist && !list.includes(state.dist)) return false;
+    }
+    if (kw) {
+      const hay = `${m.name} ${m.venue} ${m.org}`.normalize("NFKC").toLowerCase();
+      if (!hay.includes(kw)) return false;
+    }
+    return true;
+  });
+}
+
+function dateBlock(m) {
+  const s = toDate(m.start), e = toDate(m.end);
+  const multi = m.end !== m.start;
+  return `<div class="date">
+    <span class="md">${s.getMonth() + 1}/${s.getDate()}</span>
+    <span class="dow">(${DOW[s.getDay()]})</span>
+    ${multi ? `<span class="to">～${e.getMonth() + 1 !== s.getMonth() + 1 ? `${e.getMonth() + 1}/` : ""}${e.getDate()}(${DOW[e.getDay()]})</span>` : ""}
+  </div>`;
+}
+
+function eventChips(m) {
+  const items = STROKES.filter((s) => m.events[s.key]).map((s) => {
+    const hit = state.style === s.key && (!state.dist || m.events[s.key].includes(state.dist));
+    return `<li class="${hit ? "hit" : ""}">${esc(s.label)}<span>${m.events[s.key].join("・")}</span></li>`;
+  });
+  return items.length ? `<ul class="events">${items.join("")}</ul>` : `<p class="meta">実施種目：未発表</p>`;
+}
+
+function renderCards(list) {
+  if (!list.length) {
+    $("cards").innerHTML = `<div class="empty">条件に合う大会がありません。条件を変えてみてください。</div>`;
+    return;
   }
+  let html = "", month = "";
+  list.forEach((m) => {
+    const ym = `${+m.start.slice(0, 4)}年${+m.start.slice(5, 7)}月`;
+    if (ym !== month) { month = ym; html += `<h2 class="month">${ym}</h2>`; }
+    const st = entryStatus(m);
+    const cls = ["card", m.cancelled ? "is-cancelled" : "", m.end < today ? "is-past" : ""].join(" ");
+    html += `<article class="${cls}">
+      ${dateBlock(m)}
+      <div class="body">
+        <div class="tags">
+          ${m.course ? `<span class="tag ${m.course === "短水路" ? "short" : "long"}">${m.course}</span>` : ""}
+          <span class="tag ${st.cls}">${st.text}</span>
+        </div>
+        <h3 class="name">${esc(m.name)}</h3>
+        <p class="meta">${esc(m.venue)}${m.org ? `｜${esc(m.org)}` : ""}</p>
+        <p class="entry"><b>申込</b>${esc(m.entryText || "未発表")}</p>
+        ${eventChips(m)}
+      </div>
+    </article>`;
+  });
+  $("cards").innerHTML = html;
+}
 
-  setupFilters();
-  rawData.sort((a, b) => (a["開催日開始"] || "").localeCompare(b["開催日開始"] || ""));
+function renderTable(list) {
+  const head1 = `<th class="sticky" rowspan="2">大会名</th><th rowspan="2">開催日</th><th rowspan="2">水路</th>` +
+    STROKES.map((s) => `<th class="g" colspan="${s.dists.length}">${esc(s.label)}</th>`).join("");
+  const head2 = STROKES.map((s) => s.dists.map((d, i) => `<th class="${i === 0 ? "g" : ""}">${d}</th>`).join("")).join("");
+  document.querySelector("#data-table thead").innerHTML = `<tr>${head1}</tr><tr>${head2}</tr>`;
+  document.querySelector("#data-table tbody").innerHTML = list.map((m) => {
+    const s = toDate(m.start);
+    const cells = STROKES.map((st) => st.dists.map((d, i) => {
+      const on = (m.events[st.key] || []).includes(d);
+      return `<td class="${i === 0 ? "g " : ""}${on ? "y" : "n"}">${on ? "〇" : "–"}</td>`;
+    }).join("")).join("");
+    return `<tr><td class="sticky">${esc(m.name)}<small>${esc(m.venue)}</small></td>
+      <td>${s.getMonth() + 1}/${s.getDate()}(${DOW[s.getDay()]})</td>
+      <td class="${m.course === "短水路" ? "c-short" : m.course === "長水路" ? "c-long" : ""}">${m.course ? m.course.slice(0, 1) : "–"}</td>${cells}</tr>`;
+  }).join("");
+}
 
-  // ✅ 初期表示は必ず 2026年 に絞る
-  document.getElementById("year-filter").value = "2026";
-  applyFilter();
+function render() {
+  const list = filtered();
+  $("count").innerHTML = `${list.length}件 <small>／ 全${meets.length}大会</small>`;
+  $("cards").hidden = state.view !== "cards";
+  $("table-wrap").hidden = state.view !== "table";
+  if (state.view === "cards") renderCards(list); else renderTable(list);
+}
 
-  document.getElementById("data-table").classList.add("compact");
-  document.getElementById("status").textContent = `${rawData.length}件表示中`;
+// フォーム
+function setupControls() {
+  const styleSel = $("style-filter"), distSel = $("distance-filter");
+  styleSel.innerHTML = `<option value="">すべて</option>` + STROKES.map((s) => `<option value="${s.key}">${s.key}</option>`).join("");
+  const fillDist = () => {
+    const s = STROKES.find((x) => x.key === state.style);
+    distSel.innerHTML = `<option value="">すべて</option>` + (s ? s.dists.map((d) => `<option value="${d}">${d}m</option>`).join("") : "");
+    distSel.disabled = !s;
+  };
+  $("period-filter").onchange = (e) => { state.period = e.target.value; render(); };
+  styleSel.onchange = (e) => { state.style = e.target.value; state.dist = ""; fillDist(); render(); };
+  distSel.onchange = (e) => { state.dist = e.target.value; render(); };
+  $("keyword").oninput = (e) => { state.keyword = e.target.value; render(); };
+  document.querySelectorAll("[data-course]").forEach((b) => b.onclick = () => {
+    state.course = b.dataset.course;
+    document.querySelectorAll("[data-course]").forEach((x) => x.classList.toggle("on", x === b));
+    render();
+  });
+  document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => {
+    state.view = b.dataset.view;
+    document.querySelectorAll("[data-view]").forEach((x) => x.classList.toggle("on", x === b));
+    render();
+  });
+  $("reset").onclick = () => {
+    Object.assign(state, { period: "upcoming", style: "", dist: "", course: "", keyword: "" });
+    $("period-filter").value = "upcoming"; styleSel.value = ""; $("keyword").value = ""; fillDist();
+    document.querySelectorAll("[data-course]").forEach((x) => x.classList.toggle("on", x.dataset.course === ""));
+    render();
+  };
+}
 
+(async () => {
+  setupControls();
+  await loadAll();
+  $("status").hidden = true;
+  if (!meets.length) {
+    $("cards").innerHTML = `<div class="empty">大会データを読み込めませんでした。時間をおいて再度お試しください。</div>`;
+    return;
+  }
+  render();
 })();
-
-

@@ -2,56 +2,76 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>マスターズ大会一覧</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>マスターズ大会一覧 | Freakers</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>マスターズ大会一覧</h1>
+  <main class="app">
+    <header class="hero">
+      <p class="eyebrow">MASTERS SWIMMING</p>
+      <h1>マスターズ大会一覧</h1>
+      <p class="lead">日本マスターズ水泳協会の公認大会を、種目・距離・水路から探せます。</p>
+    </header>
 
-  <div class="filter-panel">
-    <label>年度:
-      <select id="year-filter">
-        <option value="">--すべて--</option>
-        <option value="2024">2024</option>
-        <option value="2025">2025</option>
-        <option value="2026">2026</option>
-        <option value="2027">2027</option>
-      </select>
-    </label>
-    <label>開催日:
-      <input type="date" id="start-date"> ～ <input type="date" id="end-date">
-    </label>
-    <label>種目:
-      <select id="style-filter"></select>
-    </label>
-    <label>距離:
-      <select id="distance-filter"></select>
-    </label>
-    <button onclick="applyFilter()">検索</button>
-    <button onclick="clearFilter()">クリア</button>
-  </div>
+    <section class="filters" aria-label="絞り込み">
+      <div class="field">
+        <label for="period-filter">期間</label>
+        <select id="period-filter">
+          <option value="upcoming">これから開催</option>
+          <option value="open">申込受付中</option>
+          <option value="2027">2027年</option>
+          <option value="2026">2026年</option>
+          <option value="2025">2025年</option>
+          <option value="2024">2024年</option>
+          <option value="all">すべて</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="style-filter">種目</label>
+        <select id="style-filter"><option value="">すべて</option></select>
+      </div>
+      <div class="field">
+        <label for="distance-filter">距離</label>
+        <select id="distance-filter" disabled><option value="">すべて</option></select>
+      </div>
+      <div class="field">
+        <span class="label">水路</span>
+        <div class="seg" role="group" aria-label="水路">
+          <button type="button" data-course="" class="on">すべて</button>
+          <button type="button" data-course="短水路">短水路</button>
+          <button type="button" data-course="長水路">長水路</button>
+        </div>
+      </div>
+      <div class="field grow">
+        <label for="keyword">キーワード</label>
+        <input id="keyword" type="search" placeholder="大会名・会場・主催など" />
+      </div>
+      <button type="button" id="reset" class="reset">条件をクリア</button>
+    </section>
 
-  <div class="toggle-panel">
-    <button onclick="toggleCompact()">▶ 表示切替（フル / コンパクト）</button>
-  </div>
-
-  <!-- ✅ Freakersロゴスピナー -->
-  <div id="status">
-    <div class="swimmer-wrapper">
-      <img src="Freakers.png" class="freakers-logo swimmer-img" alt="Freakersロゴ">
-      <div class="loading-text anim-text">データを読み込んでいます...</div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="swim-bar-fill"></div>
+    <div class="bar">
+      <p id="count" class="count" aria-live="polite"></p>
+      <div class="seg view" role="group" aria-label="表示">
+        <button type="button" data-view="cards" class="on">カード</button>
+        <button type="button" data-view="table">種目表</button>
       </div>
     </div>
-  </div>
 
-  <table id="data-table">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
+    <div id="status" class="status">
+      <img src="Freakers.png" class="logo" alt="Freakers" />
+      <p class="loading-text">データを読み込んでいます…</p>
+      <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div id="cards" class="cards"></div>
+    <div id="table-wrap" class="table-wrap" hidden>
+      <table id="data-table"><thead></thead><tbody></tbody></table>
+    </div>
+
+    <p class="note">※ 日程・申込期間・実施種目は変更されることがあります。必ず各大会の公式要項でご確認ください。</p>
+  </main>
 
   <script src="script.js"></script>
 </body>
 </html>
-
