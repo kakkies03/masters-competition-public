@@ -235,3 +235,20 @@ function setupControls() {
   }
   render();
 })();
+
+// 埋め込み先（Squareのストーリーなど）に高さを伝える。
+// 親側でiframeの高さを合わせることで、iframe内だけがスクロールして
+// スマホで上に戻れなくなる問題を防ぐ。
+(function () {
+  if (window.parent === window) return;
+  let last = 0;
+  const send = () => {
+    const h = Math.ceil(document.body.getBoundingClientRect().height);
+    if (h === last) return;
+    last = h;
+    window.parent.postMessage({ type: "masters-meet-height", height: h }, "*");
+  };
+  new ResizeObserver(send).observe(document.body);
+  window.addEventListener("load", send);
+  send();
+})();
