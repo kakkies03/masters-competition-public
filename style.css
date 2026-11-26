@@ -313,6 +313,47 @@ td.c-short { color: var(--short); font-weight: 700; }
 td.c-long { color: var(--long); font-weight: 700; }
 tr.is-hit td { background: #f4fbfd; }
 
+/* スマホの種目表（泳法切り替え） */
+.stroke-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.stroke-tabs::-webkit-scrollbar { display: none; }
+.stroke-tabs button {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stroke-tabs button.on { color: #fff; font-weight: 700; background: var(--accent); border-color: var(--accent); }
+
+.table-wrap:has(table.compact) { max-height: none; overflow: visible; }
+table.compact { width: 100%; table-layout: fixed; font-size: 12px; }
+table.compact thead th { top: 0; }
+table.compact th.sticky, table.compact td.sticky { position: static; width: 46%; }
+table.compact td.sticky { min-width: 0; max-width: none; padding: 8px 6px 8px 10px; line-height: 1.4; }
+table.compact td.sticky .when { display: block; font-size: 11px; font-weight: 700; color: var(--accent-ink); }
+table.compact td.sticky .when b { font-weight: 700; margin-left: 4px; }
+table.compact td.sticky .when .c-short { color: var(--short); }
+table.compact td.sticky .when .c-long { color: var(--long); }
+table.compact th:not(.sticky) { font-size: 11px; padding: 6px 0; }
+table.compact td.y { color: var(--accent); font-size: 13px; }
+table.compact td.n { color: #d3dade; }
+table.compact th.hit, table.compact td.hit { background: var(--accent-soft); }
+table.compact tr.is-past td { background: #f7f9fa; }
+table.compact tr.is-past td.sticky .when { color: var(--muted); }
+
 .note { margin: 20px 0 0; font-size: 12px; color: var(--muted); }
 
 /* スマホ */
