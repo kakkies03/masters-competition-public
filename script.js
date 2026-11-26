@@ -16,8 +16,23 @@ const STROKES = [
 ];
 const DOW = ["日", "月", "火", "水", "木", "金", "土"];
 
-const state = { period: "upcoming", style: "", dist: "", course: "", keyword: "", view: "cards" };
+// シートの列（0始まり）：AQ列＝要項URL、AR列＝都道府県
+const COL_URL = 42, COL_PREF = 43;
+
+// 地域の区分（都道府県は北から順）
+const REGIONS = [
+  ["北海道・東北", ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"]],
+  ["関東", ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"]],
+  ["中部", ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"]],
+  ["近畿", ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"]],
+  ["中国・四国", ["鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県"]],
+  ["九州・沖縄", ["福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"]],
+];
+const regionOf = (pref) => (REGIONS.find(([, list]) => list.includes(pref)) || [""])[0];
+
+const state = { period: "upcoming", area: "", style: "", dist: "", course: "", keyword: "", view: "cards" };
 let meets = [];
+let failedSheets = [];
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -56,10 +71,13 @@ function toMeet(r) {
   const c = String(r[5] || "");
   const course = c.includes("短") ? "短水路" : c.includes("長") ? "長水路" : "";
   const name = String(r[0] || "").trim();
+  const url = String(r[COL_URL] || "").trim();
+  const pref = String(r[COL_PREF] || "").trim();
   return {
     name, entryText: String(r[1] || "").trim(), dateText: String(r[2] || "").trim(),
     org: String(r[3] || "").trim(), venue: String(r[4] || "").trim(), course,
     start, end, entryStart, entryEnd, events, year: start.slice(0, 4),
+    url: /^https?:\/\//.test(url) ? url : "", pref, region: regionOf(pref),
     cancelled: /中止/.test(name), adjusting: /調整中|延期/.test(name),
   };
 }
@@ -77,12 +95,19 @@ function entryStatus(m) {
 // 読み込み
 async function loadAll() {
   let done = 0;
+  failedSheets = [];
+  meets = [];
+  $("progress-fill").style.width = "0%";
   const results = await Promise.all(SHEETS.map(async (name) => {
     try {
-      const data = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(name)}`).then((r) => r.json());
-      return Array.isArray(data) ? data.slice(3) : [];
+      const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("想定外のデータ形式");
+      return data.slice(3);
     } catch (e) {
       console.warn(`シート「${name}」を読み込めませんでした`, e);
+      failedSheets.push(name);
       return [];
     } finally {
       done++;
@@ -110,13 +135,15 @@ function filtered() {
     if (state.period === "open" && entryStatus(m).cls !== "open") return false;
     if (/^\d{4}$/.test(state.period) && m.year !== state.period) return false;
     if (state.course && m.course !== state.course) return false;
+    if (state.area.startsWith("r:") && m.region !== state.area.slice(2)) return false;
+    if (state.area.startsWith("p:") && m.pref !== state.area.slice(2)) return false;
     if (state.style) {
       const list = m.events[state.style] || [];
       if (!list.length) return false;
       if (state.dist && !list.includes(state.dist)) return false;
     }
     if (kw) {
-      const hay = `${m.name} ${m.venue} ${m.org}`.normalize("NFKC").toLowerCase();
+      const hay = `${m.name} ${m.venue} ${m.org} ${m.pref}`.normalize("NFKC").toLowerCase();
       if (!hay.includes(kw)) return false;
     }
     return true;
@@ -143,7 +170,7 @@ function eventChips(m) {
 
 function renderCards(list) {
   if (!list.length) {
-    $("cards").innerHTML = `<div class="empty">条件に合う大会がありません。条件を変えてみてください。</div>`;
+    $("cards").innerHTML = `<div class="empty">条件に合う大会がありません。条件を変えてみてください。${failedSheets.length ? "<br>（一部の年度を読み込めていないため、表示されていない大会があるかもしれません）" : ""}</div>`;
     return;
   }
   let html = "", month = "";
@@ -160,9 +187,10 @@ function renderCards(list) {
           <span class="tag ${st.cls}">${st.text}</span>
         </div>
         <h3 class="name">${esc(m.name)}</h3>
-        <p class="meta">${esc(m.venue)}${m.org ? `｜${esc(m.org)}` : ""}</p>
+        <p class="meta">${m.pref ? `${esc(m.pref)}｜` : ""}${esc(m.venue)}${m.org ? `｜${esc(m.org)}` : ""}</p>
         <p class="entry"><b>申込</b>${esc(m.entryText || "未発表")}</p>
         ${eventChips(m)}
+        ${m.url ? `<a class="doc" href="${esc(m.url)}" target="_blank" rel="noopener">大会要項を見る（PDF）</a>` : ""}
       </div>
     </article>`;
   });
@@ -180,10 +208,20 @@ function renderTable(list) {
       const on = (m.events[st.key] || []).includes(d);
       return `<td class="${i === 0 ? "g " : ""}${on ? "y" : "n"}">${on ? "〇" : "–"}</td>`;
     }).join("")).join("");
-    return `<tr><td class="sticky">${esc(m.name)}<small>${esc(m.venue)}</small></td>
+    return `<tr><td class="sticky">${esc(m.name)}<small>${m.pref ? `${esc(m.pref)}｜` : ""}${esc(m.venue)}</small></td>
       <td>${s.getMonth() + 1}/${s.getDate()}(${DOW[s.getDay()]})</td>
       <td class="${m.course === "短水路" ? "c-short" : m.course === "長水路" ? "c-long" : ""}">${m.course ? m.course.slice(0, 1) : "–"}</td>${cells}</tr>`;
   }).join("");
+}
+
+function renderWarning() {
+  const box = $("load-warning");
+  if (!failedSheets.length) { box.hidden = true; return; }
+  const years = failedSheets.map((n) => n.replace("公認大会一覧", "")).join("・");
+  box.innerHTML = `<p><b>${esc(years)}</b>の大会データを読み込めませんでした。表示されていない大会があります。</p>
+    <button type="button" class="retry">もう一度読み込む</button>`;
+  box.querySelector(".retry").onclick = start;
+  box.hidden = false;
 }
 
 function render() {
@@ -204,6 +242,7 @@ function setupControls() {
     distSel.disabled = !s;
   };
   $("period-filter").onchange = (e) => { state.period = e.target.value; render(); };
+  $("area-filter").onchange = (e) => { state.area = e.target.value; render(); };
   styleSel.onchange = (e) => { state.style = e.target.value; state.dist = ""; fillDist(); render(); };
   distSel.onchange = (e) => { state.dist = e.target.value; render(); };
   $("keyword").oninput = (e) => { state.keyword = e.target.value; render(); };
@@ -218,23 +257,45 @@ function setupControls() {
     render();
   });
   $("reset").onclick = () => {
-    Object.assign(state, { period: "upcoming", style: "", dist: "", course: "", keyword: "" });
-    $("period-filter").value = "upcoming"; styleSel.value = ""; $("keyword").value = ""; fillDist();
+    Object.assign(state, { period: "upcoming", area: "", style: "", dist: "", course: "", keyword: "" });
+    $("period-filter").value = "upcoming"; $("area-filter").value = ""; styleSel.value = ""; $("keyword").value = ""; fillDist();
     document.querySelectorAll("[data-course]").forEach((x) => x.classList.toggle("on", x.dataset.course === ""));
     render();
   };
 }
 
-(async () => {
-  setupControls();
+// 地域の選択肢（データにある都道府県だけ出す）
+function fillAreas() {
+  const sel = $("area-filter");
+  const have = new Set(meets.map((m) => m.pref).filter(Boolean));
+  sel.innerHTML = `<option value="">全国</option>` + REGIONS.map(([region, prefs]) => {
+    const ps = prefs.filter((p) => have.has(p));
+    if (!ps.length) return "";
+    return `<optgroup label="${region}"><option value="r:${region}">${region}すべて</option>` +
+      ps.map((p) => `<option value="p:${p}">${p}</option>`).join("") + `</optgroup>`;
+  }).join("");
+  if ([...sel.options].some((o) => o.value === state.area)) sel.value = state.area;
+  else state.area = "";
+}
+
+async function start() {
+  $("status").hidden = false;
+  $("load-warning").hidden = true;
+  $("cards").innerHTML = "";
   await loadAll();
   $("status").hidden = true;
+  renderWarning();
   if (!meets.length) {
-    $("cards").innerHTML = `<div class="empty">大会データを読み込めませんでした。時間をおいて再度お試しください。</div>`;
+    $("count").innerHTML = "";
+    $("cards").innerHTML = `<div class="empty">大会データを読み込めませんでした。通信状況を確認して、もう一度お試しください。</div>`;
     return;
   }
+  fillAreas();
   render();
-})();
+}
+
+setupControls();
+start();
 
 // 埋め込み先（Squareのストーリーなど）に高さを伝える。
 // 親側でiframeの高さを合わせることで、iframe内だけがスクロールして
