@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>マスターズ大会一覧 | Freakers</title>
-  <link rel="stylesheet" href="style.css?v=20261126" />
+  <link rel="stylesheet" href="style.css?v=20261126b" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
       <p class="eyebrow">MASTERS SWIMMING</p>
       <h1>マスターズ大会一覧</h1>
-      <p class="lead">日本マスターズ水泳協会の公認大会を、種目・距離・水路から探せます。</p>
+      <p class="lead">日本マスターズ水泳協会の公認大会を、地域・種目・距離・水路から探せます。</p>
     </header>
 
     <section class="filters" aria-label="絞り込み">
@@ -26,6 +26,10 @@
           <option value="2024">2024年</option>
           <option value="all">すべて</option>
         </select>
+      </div>
+      <div class="field">
+        <label for="area-filter">地域</label>
+        <select id="area-filter"><option value="">全国</option></select>
       </div>
       <div class="field">
         <label for="style-filter">種目</label>
@@ -64,6 +68,8 @@
       <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
 
+    <div id="load-warning" class="load-warning" role="alert" hidden></div>
+
     <div id="cards" class="cards"></div>
     <div id="table-wrap" class="table-wrap" hidden>
       <table id="data-table"><thead></thead><tbody></tbody></table>
@@ -72,6 +78,6 @@
     <p class="note">※ 日程・申込期間・実施種目は変更されることがあります。必ず各大会の公式要項でご確認ください。</p>
   </main>
 
-  <script src="script.js?v=20261126"></script>
+  <script src="script.js?v=20261126b"></script>
 </body>
 </html>
