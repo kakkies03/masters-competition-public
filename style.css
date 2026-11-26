@@ -279,6 +279,9 @@ tr.is-hit td { background: #f4fbfd; }
   .filters { padding: 12px; gap: 10px; }
   .field { flex: 1 1 calc(50% - 10px); min-width: 0; }
   .field.grow { flex-basis: 100%; }
+  .field:has(.seg) { flex-basis: 100%; }
+  .field .seg { display: flex; }
+  .field .seg button { flex: 1; }
   .reset { width: 100%; }
   .card { grid-template-columns: 62px 1fr; gap: 10px; padding: 12px; }
   .date .md { font-size: 17px; }
