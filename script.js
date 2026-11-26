@@ -39,7 +39,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
-const today = (() => { const t = new Date(); return iso(t.getFullYear(), t.getMonth() + 1, t.getDate()); })();
+// 今日の日付（日本時間）。ページを作るサーバーと見る人の端末で日付がずれないようにする
+const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date());
 const toDate = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 
 // 「2026年11月30日(月) ～ 12月14日(月)」「2027年1月30日(土)」などを [開始, 終了] に
@@ -101,6 +102,8 @@ async function loadAll() {
   $("progress-fill").style.width = "0%";
   const results = await Promise.all(SHEETS.map(async (name) => {
     try {
+      // ページに埋め込み済みのデータがあればそれを使う（毎日の自動更新で作られる）
+      if (window.MEETS_DATA && Array.isArray(window.MEETS_DATA[name])) return window.MEETS_DATA[name];
       const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(name)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -253,7 +256,7 @@ function renderWarning() {
   const years = failedSheets.map((n) => n.replace("公認大会一覧", "")).join("・");
   box.innerHTML = `<p><b>${esc(years)}</b>の大会データを読み込めませんでした。表示されていない大会があります。</p>
     <button type="button" class="retry">もう一度読み込む</button>`;
-  box.querySelector(".retry").onclick = start;
+  box.querySelector(".retry").onclick = () => { window.MEETS_DATA = null; start(); };
   box.hidden = false;
 }
 
@@ -321,9 +324,9 @@ function fillAreas() {
 }
 
 async function start() {
-  $("status").hidden = false;
+  const embedded = !!window.MEETS_DATA;
+  if (!embedded) { $("status").hidden = false; $("cards").innerHTML = ""; }
   $("load-warning").hidden = true;
-  $("cards").innerHTML = "";
   await loadAll();
   $("status").hidden = true;
   renderWarning();
