@@ -30,7 +30,8 @@ const REGIONS = [
 ];
 const regionOf = (pref) => (REGIONS.find(([, list]) => list.includes(pref)) || [""])[0];
 
-const state = { period: "upcoming", area: "", style: "", dist: "", course: "", keyword: "", view: "cards" };
+const state = { period: "upcoming", area: "", style: "", dist: "", course: "", keyword: "", view: "cards", tableStroke: "自由形" };
+const mobile = window.matchMedia("(max-width: 600px)");
 let meets = [];
 let failedSheets = [];
 
@@ -214,6 +215,38 @@ function renderTable(list) {
   }).join("");
 }
 
+// スマホの種目表：泳法を1つ選んで、その距離だけを表示する
+function renderStrokeTabs() {
+  $("stroke-tabs").innerHTML = STROKES.map((s) =>
+    `<button type="button" data-stroke="${s.key}" class="${s.key === state.tableStroke ? "on" : ""}">${esc(s.label)}</button>`).join("");
+  $("stroke-tabs").querySelectorAll("[data-stroke]").forEach((b) => b.onclick = () => {
+    state.tableStroke = b.dataset.stroke;
+    render();
+  });
+  // 選んでいる泳法のボタンが見える位置までタブを横にずらす
+  const on = $("stroke-tabs").querySelector(".on");
+  if (on) $("stroke-tabs").scrollLeft = on.offsetLeft - $("stroke-tabs").offsetLeft - 12;
+}
+
+function renderTableCompact(list) {
+  const st = STROKES.find((s) => s.key === state.tableStroke) || STROKES[0];
+  const hitCol = state.style === st.key ? state.dist : "";
+  document.querySelector("#data-table thead").innerHTML = `<tr><th class="sticky">大会</th>` +
+    st.dists.map((d) => `<th class="${d === hitCol ? "hit" : ""}">${d}</th>`).join("") + `</tr>`;
+  document.querySelector("#data-table tbody").innerHTML = list.map((m) => {
+    const s = toDate(m.start);
+    const list2 = m.events[st.key] || [];
+    const cells = st.dists.map((d) => {
+      const on = list2.includes(d);
+      return `<td class="${on ? "y" : "n"}${d === hitCol ? " hit" : ""}">${on ? "●" : "・"}</td>`;
+    }).join("");
+    const cc = m.course === "短水路" ? "c-short" : m.course === "長水路" ? "c-long" : "";
+    return `<tr class="${m.end < today ? "is-past" : ""}"><td class="sticky">
+      <span class="when">${s.getMonth() + 1}/${s.getDate()}(${DOW[s.getDay()]})${m.course ? ` <b class="${cc}">${m.course}</b>` : ""}</span>
+      ${esc(m.name)}<small>${m.pref ? `${esc(m.pref)}｜` : ""}${esc(m.venue)}</small></td>${cells}</tr>`;
+  }).join("");
+}
+
 function renderWarning() {
   const box = $("load-warning");
   if (!failedSheets.length) { box.hidden = true; return; }
@@ -229,7 +262,12 @@ function render() {
   $("count").innerHTML = `${list.length}件 <small>／ 全${meets.length}大会</small>`;
   $("cards").hidden = state.view !== "cards";
   $("table-wrap").hidden = state.view !== "table";
-  if (state.view === "cards") renderCards(list); else renderTable(list);
+  const compact = state.view === "table" && mobile.matches;
+  $("stroke-tabs").hidden = !compact;
+  $("data-table").classList.toggle("compact", compact);
+  if (state.view === "cards") renderCards(list);
+  else if (compact) { renderStrokeTabs(); renderTableCompact(list); }
+  else renderTable(list);
 }
 
 // フォーム
@@ -243,7 +281,11 @@ function setupControls() {
   };
   $("period-filter").onchange = (e) => { state.period = e.target.value; render(); };
   $("area-filter").onchange = (e) => { state.area = e.target.value; render(); };
-  styleSel.onchange = (e) => { state.style = e.target.value; state.dist = ""; fillDist(); render(); };
+  styleSel.onchange = (e) => {
+    state.style = e.target.value; state.dist = "";
+    if (state.style) state.tableStroke = state.style;
+    fillDist(); render();
+  };
   distSel.onchange = (e) => { state.dist = e.target.value; render(); };
   $("keyword").oninput = (e) => { state.keyword = e.target.value; render(); };
   document.querySelectorAll("[data-course]").forEach((b) => b.onclick = () => {
@@ -296,6 +338,8 @@ async function start() {
 
 setupControls();
 start();
+// 画面幅が変わったら（スマホの縦横回転など）表を描き直す
+mobile.addEventListener("change", () => { if (meets.length) render(); });
 
 // 埋め込み先（Squareのストーリーなど）に高さを伝える。
 // 親側でiframeの高さを合わせることで、iframe内だけがスクロールして
